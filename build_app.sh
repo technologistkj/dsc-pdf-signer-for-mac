@@ -5,7 +5,7 @@
 #
 # The build dir must be on an APFS/HFS+ volume (app bundles need symlinks and
 # extended attributes). Default: ./build. Output: <build-dir>/dist/DSC Signer.app
-# and a zip ready to attach to a GitHub release.
+# and a .dmg ready to attach to a GitHub release.
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 OUT="${1:-$SRC/build}"
@@ -52,8 +52,14 @@ PL="$APP/Contents/Info.plist"
 # Info.plist changed, so re-apply the ad-hoc signature
 codesign --force --deep --sign - "$APP"
 
-ZIP="$OUT/dist/DSC-Signer-$VERSION-macOS-arm64.zip"
-rm -f "$ZIP"
-ditto -c -k --keepParent "$APP" "$ZIP"
+# Disk image: the app, an Applications shortcut to drag it onto, and the licence
+DMG="$OUT/dist/DSC-Signer-$VERSION-macOS-arm64.dmg"
+STAGE="$OUT/build/dmg"
+rm -rf "$STAGE" "$DMG"
+mkdir -p "$STAGE"
+ditto "$APP" "$STAGE/DSC Signer.app"
+ln -s /Applications "$STAGE/Applications"
+install -m 644 "$SRC/LICENSE" "$STAGE/LICENSE.txt"
+hdiutil create -quiet -volname "DSC Signer $VERSION" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG"
 echo "Built: $APP"
-echo "Zip:   $ZIP"
+echo "DMG:   $DMG"
