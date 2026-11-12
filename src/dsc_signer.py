@@ -4,14 +4,19 @@ USB token, with a visual signature-box picker.
 Open a PDF, go to the page, drag a box where the signature should appear,
 set reason/location, click Sign, enter the token PIN, choose where to save.
 """
-import datetime as _dt
 import os
-import queue
-import subprocess
 import sys
-import threading
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+if __name__ == "__main__" and len(sys.argv) > 2 and sys.argv[1] == "--probe-pkcs11":
+    import dsc_probe            # driver test in a child process (see dsc_tokens.probe)
+    dsc_probe.main(sys.argv[2])
+
+import datetime as _dt
+import queue
+import subprocess
+import threading
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -21,6 +26,7 @@ from PIL import ImageTk
 
 import dsc_config
 import dsc_core
+import dsc_setup
 import dsc_stamp
 from dsc_config import load_settings, save_settings
 
@@ -99,6 +105,7 @@ class App:
         self._render_job = None
         self._box_job = None
         self._pv_key = self._pv_photo = None
+        self._setup_shown = False
 
         root.title("DSC Signer")
         root.geometry(self.s.get("geometry", "1180x900"))
@@ -148,6 +155,7 @@ class App:
         self.token_lbl.pack(anchor="w")
         self.cert_lbl = ttk.Label(tf, text="", wraplength=260, justify="left", foreground="gray")
         self.cert_lbl.pack(anchor="w", pady=(4, 0))
+        ttk.Button(tf, text="Token setup…", command=self.token_setup).pack(anchor="w", pady=(8, 0))
 
         sf = ttk.LabelFrame(side, text="Signature", padding=10)
         sf.pack(fill="x", pady=(12, 0))
@@ -183,6 +191,15 @@ class App:
         self.status = ttk.Label(side, text="", wraplength=280, justify="left")
         self.status.pack(side="bottom", anchor="w", pady=(0, 8))
 
+        menubar = tk.Menu(r)
+        fm = tk.Menu(menubar, tearoff=0)
+        fm.add_command(label="Open PDF…", accelerator="Command-O", command=self.choose)
+        fm.add_command(label="Sign…", accelerator="Command-Return", command=self.sign)
+        menubar.add_cascade(label="File", menu=fm)
+        tm = tk.Menu(menubar, tearoff=0)
+        tm.add_command(label="Token Setup…", command=self.token_setup)
+        menubar.add_cascade(label="Token", menu=tm)
+        r.config(menu=menubar)
         r.bind_all("<Command-o>", lambda _: self.choose())
         r.bind_all("<Command-Return>", lambda _: self.sign())
         r.bind("<Left>", lambda e: self._key_nav(e, -1))
@@ -219,10 +236,17 @@ class App:
     def _show_token(self, info):
         self.token = info
         if info is None:
-            msg = ("No token detected. Plug in the DSC token." if dsc_core.pkcs11_lib() else
-                   "Token driver not found. Install the driver (PKCS#11 library) for your DSC token.")
+            if dsc_core.pkcs11_lib():
+                msg = "No token detected. Plug in your DSC token."
+                hint = "Plugged in already? Click Token setup… to fix it."
+            else:
+                msg = "Your token's driver isn't installed yet."
+                hint = "Click Token setup… and follow the three steps."
+                if not self._setup_shown:          # guide first-time users straight away
+                    self._setup_shown = True
+                    self.root.after(300, self.token_setup)
             self.token_lbl.config(text=msg, foreground="#d93025")
-            self.cert_lbl.config(text="")
+            self.cert_lbl.config(text=hint, foreground="gray")
             return
         self.token_lbl.config(text=info.signer or info.label, foreground="")
         if info.expires:
@@ -237,6 +261,20 @@ class App:
         else:
             self.cert_lbl.config(text=f"Token {info.serial}", foreground="gray")
         self._draw_box()
+
+    def token_setup(self):
+        dsc_setup.TokenSetup.show(self.root, self._use_driver)
+
+    def _use_driver(self, path):
+        if self.s.get("pkcs11_lib") != path:
+            self.s["pkcs11_lib"] = path
+            save_settings(self.s)
+        self._refresh_now()
+
+    def _refresh_now(self):
+        if not self.busy:
+            threading.Thread(target=lambda: self.q.put(("token", dsc_core.token_status())),
+                             daemon=True).start()
 
     # ---------- document ----------
     def choose(self):

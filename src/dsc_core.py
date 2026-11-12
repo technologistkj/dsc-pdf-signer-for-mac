@@ -23,6 +23,7 @@ import dsc_stamp
 LIB_CANDIDATES = [
     "/usr/local/lib/libcastle_v2.1.0.0.dylib",   # HyperPKI HYP2003 (India)
     "/usr/local/lib/libcastle*.dylib",           # other ePass2003-family drivers
+    "/usr/local/lib/libeTPkcs11.dylib",          # SafeNet eToken (SafeNet Authentication Client)
 ]
 TSA = "http://timestamp.digicert.com"
 
@@ -44,9 +45,9 @@ class TokenInfo:
 
 def pkcs11_lib():
     """Path of the token's PKCS#11 library, or None if no driver is installed."""
-    p = os.environ.get("DSC_PKCS11_LIB") or dsc_config.load_settings().get("pkcs11_lib")
-    if p:
-        return p if os.path.exists(p) else None
+    for p in (os.environ.get("DSC_PKCS11_LIB"), dsc_config.load_settings().get("pkcs11_lib")):
+        if p and os.path.exists(p):
+            return p
     for pat in LIB_CANDIDATES:
         hits = sorted(glob.glob(pat))
         if hits:
@@ -144,8 +145,8 @@ def sign_pdf(pin, infile, outfile, page_index=0, box=None, reason="", location="
     user-readable message on failure."""
     lib = pkcs11_lib()
     if not lib:
-        raise SigningError("The token driver (PKCS#11 library) was not found. Install the "
-                           "driver for your DSC token, or set \"pkcs11_lib\" in " + dsc_config.SETTINGS)
+        raise SigningError("Your token's driver isn't installed yet. "
+                           "Click “Token setup…” and follow the steps.")
     with _token_lock:
         try:
             session = open_pkcs11_session(lib, user_pin=pin)

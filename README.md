@@ -6,12 +6,11 @@ The signature is a standard PAdES/PKCS#7 signature (SHA-256, with an optional RF
 
 It exists because Adobe Acrobat on macOS often can't use these tokens: Acrobat's sandbox blocks the token driver.
 
-## Requirements
+## What you need
 
-- macOS 12 or later on Apple Silicon (M1 or later).
-- A DSC USB token and its vendor driver (the PKCS#11 library). Install the driver from the token vendor's site.
-  - Tested with: HyperPKI HYP2003 (driver library `/usr/local/lib/libcastle_v2.1.0.0.dylib`) holding an Indian CCA-chain Class 3 signing certificate.
-  - Other PKCS#11 tokens should work. See [Using a different token](#using-a-different-token).
+- **A Mac with an Apple chip** (M1 or newer: most Macs sold since late 2020), running macOS 12 or later. To check, open the Apple menu  → **About This Mac** and look for "Chip: Apple M…".
+- **Your DSC USB token**: the USB stick your Digital Signature Certificate came on.
+- **The token's driver**, installed once. DSC Signer walks you through this (see [Setting up your token](#setting-up-your-token)).
 
 ## Install (binary)
 
@@ -21,9 +20,61 @@ It exists because Adobe Acrobat on macOS often can't use these tokens: Acrobat's
    xattr -dr com.apple.quarantine "/Applications/DSC Signer.app"
    ```
 
+## Setting up your token
+
+This is done once per Mac and takes about five minutes.
+
+**Why it's needed.** Each DSC token brand talks to the Mac through a small program from its maker, called a *driver*, much as a printer needs a printer driver. macOS doesn't include these drivers, so it has to be installed once. DSC Signer can't include it either: each maker publishes its own.
+
+**What DSC Signer does for you.** The first time you open it, or whenever you click **Token setup…**, it opens **Set up your DSC token** with three steps. Each step turns green when it's done.
+
+1. **Plug in your DSC token.** DSC Signer recognises the token and tells you its make, for example "a Hypersecu HyperPKI token".
+2. **Install the token's driver.**
+   - **Download the driver** opens the maker's official download page if DSC Signer knows it. Otherwise it searches the web for that exact token's Mac driver.
+   - Once the download finishes, an **Open the downloaded installer** button appears. Click it, then click **Continue** and **Install**, and type your Mac password when asked (it's the password you use to log in to the Mac).
+   - DSC Signer notices the driver by itself as soon as the installation finishes. There's nothing to configure.
+3. **Check that the token works.** DSC Signer confirms it can read your certificate. If the Mac sees the token but the driver can't reach it, the step offers **Reset token connection**. This happens when a macOS service gets stuck. The button asks for your Mac password, then tells you to unplug the token and plug it back in.
+
+**Where the driver comes from.** The company that issued your DSC, or sold you the token, provides the Mac driver. It's usually on their website, often under "Downloads" or "Token drivers".
+
+| Token | Mac driver |
+|---|---|
+| Hypersecu HyperPKI (HYP2003) | [hypersecu.com/updates-india](https://hypersecu.com/updates-india). Tested with DSC Signer. |
+| Other tokens (ePass2003, Watchdata ProxKey, mToken, SafeNet eToken, Trust Key, …) | From your DSC provider or the token maker. These should work if the maker offers a driver for Macs with Apple chips, but they haven't been tested yet. |
+
+**If something goes wrong:**
+
+- **"The installer can't be opened because Apple cannot check it":** in Finder, hold **Control**, click the installer file, choose **Open**, then **Open** again.
+- **"A driver is installed, but it only works on older Intel Macs":** the maker's driver is out of date. Ask your DSC provider for the version for Apple-chip Macs (M1, M2, M3, M4).
+- **The token isn't found at all:** try another USB port or adapter. If the token has a light, it should come on.
+
+<details>
+<summary>For IT staff: driver locations and manual setup</summary>
+
+DSC Signer looks for PKCS#11 libraries in:
+- `/usr/local/lib`
+- `/opt/homebrew/lib`
+- `/Library/OpenSC/lib`
+- `/Library/Frameworks/*.framework`
+- the bundles of token utilities in `/Applications`
+
+It identifies a driver by its `C_GetFunctionList` export, never by file name. Each candidate is loaded in a separate process with a timeout. The app then picks the driver that sees a token with certificates on it, preferring the maker's driver over OpenSC.
+
+Known paths:
+- HyperPKI: `/usr/local/lib/libcastle_v2.1.0.0.dylib`
+- SafeNet Authentication Client: `/usr/local/lib/libeTPkcs11.dylib`
+
+To set a driver by hand, either:
+- use **Token setup… → Choose driver file…**;
+- add `"pkcs11_lib": "/path/to/driver.dylib"` to `~/Library/Application Support/DSC Signer/settings.json`;
+- or set the `DSC_PKCS11_LIB` environment variable (command line).
+
+The signing certificate is the one whose public key matches a private key on the token, so a renewed DSC works with no extra setup.
+</details>
+
 ## Usage
 
-1. Plug in the token. The sidebar shows the certificate holder's name and the certificate's expiry date.
+1. Plug in the token. The sidebar shows the certificate holder's name and the certificate's expiry date. The first time, the **Set up your DSC token** window opens instead (see below).
 2. **Open PDF…** (⌘O), or right-click a PDF in Finder and choose **Open With → DSC Signer**. The last page opens by default.
 3. Place the signature box:
    - drag on the page to draw it, or click to drop a default-size box;
@@ -53,18 +104,6 @@ Options:
 
 The PIN is read from the terminal.
 
-## Using a different token
-
-By default the app looks for the HyperPKI/ePass2003 driver (`/usr/local/lib/libcastle*.dylib`). For another token, point the app at its PKCS#11 library in one of two ways:
-
-- In `~/Library/Application Support/DSC Signer/settings.json`:
-  ```json
-  { "pkcs11_lib": "/path/to/vendor-pkcs11.dylib" }
-  ```
-- With the `DSC_PKCS11_LIB` environment variable (command line).
-
-The signing certificate is found automatically: the app picks whichever certificate on the token matches a private key. A renewed certificate works without any setup.
-
 ## Privacy
 
 - **PIN:** never stored or logged. It is held in memory only while signing.
@@ -78,10 +117,7 @@ The cursive name uses **Snell Roundhand**. The app takes this font from the user
 
 ## Troubleshooting
 
-- **"No token detected" while the token is plugged in:**
-  - macOS's USB smart-card service can hang and keep hold of the token.
-  - Run `ps -ax | grep usbsmartcardreaderd`, then `sudo kill -9 <pid>`, then unplug the token and plug it back in.
-  - `killall` and a normal `kill` don't work on that service.
+- **"No token detected" while the token is plugged in:** click **Token setup…** and follow step 3 (**Reset token connection**). IT staff: this restarts macOS's `usbsmartcardreaderd` with `pkill -9`. That service can hang and keep hold of the token, and `killall` or a normal `kill` won't stop it.
 - **Wrong PIN:** each wrong attempt counts toward locking the token. A locked token can only be unblocked by the certificate issuer.
 - **Rotated pages:** visible signatures aren't supported on rotated pages. Sign invisibly, or choose another page.
 
