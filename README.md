@@ -121,6 +121,20 @@ The cursive name uses **Snell Roundhand**. The app takes this font from the user
 - **Wrong PIN:** each wrong attempt counts toward locking the token. A locked token can only be unblocked by the certificate issuer.
 - **Rotated pages:** visible signatures aren't supported on rotated pages. Sign invisibly, or choose another page.
 
+## Something not working? Fix it with Claude
+
+DSC Signer was built and tested on the author's own Mac, with a Hypersecu HyperPKI token. Other tokens, drivers and macOS versions may behave differently. Just in case something doesn't work on your Mac, you, or anyone helping you, can download the code and ask [Claude Code](https://claude.com/claude-code) to fix it:
+
+```bash
+git clone https://github.com/technologistkj/dsc-pdf-signer-for-mac.git
+cd dsc-pdf-signer-for-mac
+claude
+```
+
+Then describe what happened in plain words. For example: "My ProxKey token isn't found in Token setup", or "Signing fails with this error:" followed by the error. Add a screenshot if you can. **Never type your token PIN into the chat, and never share certificate files.**
+
+If the fix would help others, please send it back as a pull request.
+
 ## Build from source
 
 ```bash
