@@ -1,0 +1,30 @@
+# Build output
+build/
+dist/
+.venv/
+__pycache__/
+*.pyc
+*.spec
+
+# NEVER commit personal material: certificates, keys, signed documents, settings, logs
+*.pem
+*.der
+*.crt
+*.cer
+*.p12
+*.pfx
+*.key
+*.pdf
+settings.json
+*.log
+.env
+.env.*
+secrets*.txt
+
+# Extracted system fonts (Apple's fonts may not be redistributed)
+fonts/
+*.ttf
+*.ttc
+*.otf
+
+.DS_Store

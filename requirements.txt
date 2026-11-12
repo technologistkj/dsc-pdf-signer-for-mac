@@ -1,0 +1,8 @@
+pyHanko[pkcs11,opentype]==0.38.1
+pyhanko-certvalidator==0.33.0
+python-pkcs11==0.9.5
+pypdfium2==5.15.2
+pillow==13.0.0
+fonttools==4.68.0
+uharfbuzz==0.57.0
+asn1crypto==1.5.1
