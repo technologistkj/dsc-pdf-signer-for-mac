@@ -15,7 +15,7 @@ It exists because Adobe Acrobat on macOS often can't use these tokens: Acrobat's
 
 ## Install (binary)
 
-1. Download `DSC-Signer-<version>-macOS-arm64.zip` from [Releases](../../releases), unzip it, and move **DSC Signer.app** to your Applications folder.
+1. Download `DSC-Signer-<version>-macOS-arm64.dmg` from [Releases](../../releases), open it, and drag **DSC Signer** onto the **Applications** folder.
 2. The app is not notarised by Apple, so the first launch is blocked. Open it once, then go to **System Settings → Privacy & Security** and click **Open Anyway**. Alternatively, run:
    ```bash
    xattr -dr com.apple.quarantine "/Applications/DSC Signer.app"
@@ -88,7 +88,7 @@ The cursive name uses **Snell Roundhand**. The app takes this font from the user
 ## Build from source
 
 ```bash
-./build_app.sh /path/on/an/APFS/volume   # writes dist/DSC Signer.app and a release .zip
+./build_app.sh /path/on/an/APFS/volume   # writes dist/DSC Signer.app and a release .dmg
 ```
 
 Needs Python 3.12 from python.org (set `PYTHON=` to choose the interpreter). Build on an APFS or HFS+ volume: app bundles can't be built on FAT32 or exFAT drives.
@@ -97,4 +97,4 @@ Before publishing a release, run `scripts/check_release.sh` (see the script for 
 
 ## Licence
 
-_Choose a licence before publishing (for example, MIT)._ Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
